@@ -12,7 +12,7 @@ modification, are permitted provided that the following conditions are met:
       documentation and/or other materials provided with the distribution.
     * Neither the name of the copyright holder nor the
       names of its contributors may be used to endorse or promote products
-      derived from this software without specific prior written permission.
+      derived from this software without specific pfrior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -26,24 +26,16 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifdef __x86_64__
-
 #include <stdio.h>
-
-int main(int argc, char** argv) {
-  (void)fprintf(stderr, "The raspicam_node for the x86/64 architecture is a fake!\n");
-  return 1;
-}
-
-#endif  // __x86_64__
-
-#ifdef __arm__
-
-// We use some GNU extensions (basename)
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ros/ros.h"
+#ifdef __arm__
+
+// We use some GNU extensions (basename)
+
 
 #include <memory>
 
@@ -193,16 +185,18 @@ static void configure_parameters(RASPIVID_STATE& state, ros::NodeHandle& nh) {
   nh.param<bool>("enable_imv", state.enable_imv_pub, false);
   nh.param<int>("camera_id", state.camera_id, 0);
 
-  // Set up the camera_parameters to default
-  raspicamcontrol_set_defaults(state.camera_parameters);
+  
 
   bool temp;
   nh.param<bool>("hFlip", temp, false);
   state.camera_parameters.hflip = temp;  // Hack for bool param => int variable
   nh.param<bool>("vFlip", temp, false);
   state.camera_parameters.vflip = temp;  // Hack for bool param => int variable
+  ROS_INFO("H Flip: %d V Flip: %d",state.camera_parameters.hflip,state.camera_parameters.vflip);
   nh.param<int>("shutter_speed", state.camera_parameters.shutter_speed, 0);
 
+  // Set up the camera_parameters to default
+  raspicamcontrol_set_defaults(state.camera_parameters);
   state.isInit = false;
 }
 
@@ -1304,8 +1298,9 @@ void reconfigure_callback(raspicam_node::CameraConfig& config, uint32_t level, R
 
   ROS_DEBUG("Reconfigure done");
 }
-
+#endif
 int main(int argc, char** argv) {
+  
   ros::init(argc, argv, "raspicam_node");
   ros::NodeHandle nh_params("~");
 
@@ -1315,6 +1310,7 @@ int main(int argc, char** argv) {
   // The node handle used for topics will be private or public depending on the value of the ~private_topics parameter
   ros::NodeHandle nh_topics(private_topics ? std::string("~") : std::string());
 
+  #ifdef __arm__
   nh_params.param("skip_frames", skip_frames, 0);
 
   std::string camera_info_url;
@@ -1374,9 +1370,11 @@ int main(int argc, char** argv) {
   server.setCallback(f);
 
   start_capture(state_srv);
+  #endif
+  ROS_WARN("Running Node\n");
   ros::spin();
+  #ifdef __arm__
   close_cam(state_srv);
+  #endif
   ros::shutdown();
 }
-
-#endif  // __arm__
